@@ -14,6 +14,8 @@ import java.net.URI;
 @ClientEndpoint
 @Component
 public class WebSocketClient {
+    @Value("${home.assistant.websocket.access_token}")
+    String access_token;
 
     @OnOpen
     public void onOpen(Session session) throws IOException {
@@ -24,7 +26,13 @@ public class WebSocketClient {
     @OnMessage
     public void onMessage(Session session, String message) throws IOException {
         // Handle new messages
-        log.info("Received new message: {}", message);
+        log.info("Received message: {}", message);
+
+        if (message.contains("\"type\":\"auth_required\"")) {
+            sendMessage(session,
+                    "{\"type\":\"auth\",\"access_token\":\"" + access_token + "\"}"
+            );
+        }
     }
 
     @OnClose
@@ -37,6 +45,11 @@ public class WebSocketClient {
     public void onError(Session session, Throwable throwable) {
         // Do error handling here
         log.error("Error occurred", throwable);
+    }
+
+    public void sendMessage(Session session, String message) throws IOException {
+        log.info("Sending message: {}", message);
+        session.getBasicRemote().sendText(message);
     }
 }
 
@@ -59,8 +72,6 @@ class WebSocketStarter {
                 webSocketClient,
                 new URI(homeAssistantWebsocketUrl)
         );
-        session.close();
-
     }
 
     @PreDestroy
@@ -68,4 +79,3 @@ class WebSocketStarter {
         session.close();
     }
 }
-
