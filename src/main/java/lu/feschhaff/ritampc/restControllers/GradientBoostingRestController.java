@@ -1,5 +1,8 @@
 package lu.feschhaff.ritampc.restControllers;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.extern.log4j.Log4j2;
 import lu.feschhaff.ritampc.DataManager;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,10 +17,21 @@ import java.io.IOException;
 public class GradientBoostingRestController {
 
     @GetMapping("/train")
+    @Operation(
+            summary = "Train models based on folder csv files",
+            description =
+                    "This will call the XGBoosting algorithm based on the folder data" +
+                    "the server will generate (n * n * m) models, and save them under XXX"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully trained models based on folder data!"),
+            @ApiResponse(responseCode = "500", description = "Internal server error, something went wrong! ")
+    })
     public String trainModel() throws IOException {
-        log.info("Train model based on folder has been called! ");
+        log.info("Trigger and train models based on folder has been started!");
         DataManager.trainModelBasedOnFolderData();
+        log.info("Successfully trained models based on folder data!");
 
-        return "Model training started";
+        return "Successfully trained models based on folder data!";
     }
 }
