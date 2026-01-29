@@ -1,4 +1,4 @@
-package lu.feschhaff.ritampc.restControllers;
+package lu.feschhaff.ritampc.Controllers.Rest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -14,7 +14,7 @@ import java.io.IOException;
 @RestController
 @Log4j2
 @RequestMapping("/rita")
-public class GradientBoostingRestController {
+public class GradientBoostingControllerRest {
 
     @GetMapping("/train")
     @Operation(
