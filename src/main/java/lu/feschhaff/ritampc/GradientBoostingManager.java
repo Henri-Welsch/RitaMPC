@@ -23,12 +23,12 @@ public class GradientBoostingManager {
         }
     }
 
-    public Booster trainAndGetModel(DMatrix trainingData, DMatrix evaluationData) throws XGBoostError {
+    public static Booster trainAndGetModel(DMatrix trainingData, DMatrix evaluationData) throws XGBoostError {
         Map<String, Object> params = new HashMap<String, Object>() {
             {
                 put("eta", 1.0);
                 put("max_depth", 2);
-                put("objective", "binary:logistic");
+                put("objective", "reg:squarederror");
                 put("eval_metric", "logloss");
             }
         };
@@ -36,10 +36,47 @@ public class GradientBoostingManager {
         // Optional: watch list lets you track performance
         Map<String, DMatrix> watches = new HashMap<>();
         watches.put("train", trainingData);
-        watches.put("eval", evaluationData);
+
+        if (evaluationData != null) {
+            watches.put("eval", evaluationData);
+        }
 
         int numRounds = 10;  // number of boosting rounds
         return XGBoost.train(trainingData, params, numRounds, watches, null, null);
+    }
+
+    public static DMatrix toDMatrix(FeatureSubSet subset) throws XGBoostError {
+        int numCols = subset.getFeatures().size();
+        int numRows = subset.getFeatures().get(0).getFeatures().size();
+
+        // Flatten feature data row-major
+        float[] data = new float[numRows * numCols];
+        int idx = 0;
+
+        for (FeaturePoint fp : subset.getFeatures()) {
+            for (Float value : fp.getFeatures()) {
+                data[idx++] = value != null ? value : Float.NaN;
+            }
+        }
+
+        // Create DMatrix
+        DMatrix matrix = new DMatrix(data, numRows, numCols, Float.NaN);
+
+        // Labels
+        float[] labels = new float[numRows];
+        for (int i = 0; i < numRows; i++) {
+            labels[i] = subset.getLabel().getFeatures().get(i);
+        }
+        matrix.setLabel(labels);
+
+        // featureNames
+        String[] featureNames = new String[numCols];
+        for (int i = 0; i < numCols; i++) {
+            featureNames[i] = subset.getFeatures().get(i).getEntity_id();
+        }
+        matrix.setFeatureNames(featureNames);
+
+        return matrix;
     }
 
     public DMatrix getExampleTrainingData() throws XGBoostError {
