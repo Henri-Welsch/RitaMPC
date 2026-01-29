@@ -19,7 +19,15 @@ import java.util.stream.Collectors;
 
 @Log4j2
 public class DataManager {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args)  {
+        try {
+            DataManager.trainModelBasedOnFolderData();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static void trainModelBasedOnFolderData() throws IOException {
         DataManager dataManager = new DataManager();
         CsvManager csvManager = new CsvManager();
         GradientBoostingManager gradientBoostingManager = new GradientBoostingManager();
