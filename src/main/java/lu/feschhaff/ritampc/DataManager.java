@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.log4j.Log4j2;
+import ml.dmlc.xgboost4j.java.Booster;
 import ml.dmlc.xgboost4j.java.XGBoostError;
 import ml.dmlc.xgboost4j.java.DMatrix;
 
@@ -21,6 +22,7 @@ public class DataManager {
     public static void main(String[] args) throws IOException {
         DataManager dataManager = new DataManager();
         CsvManager csvManager = new CsvManager();
+        GradientBoostingManager gradientBoostingManager = new GradientBoostingManager();
 
         String directory = "C:/Users/WelJo/Desktop/TrainingDataFolder";
         Set<Path> paths = dataManager.listFilesUsingDirectoryStream(directory);
@@ -32,7 +34,19 @@ public class DataManager {
                 ));
 
         List<FeatureSubSet> subSets = dataManager.getSubSets(featuresByFile, 5);
+
+        ArrayList<Booster> boosters = new ArrayList<>();
+        for (FeatureSubSet subSet : subSets) {
+            try {
+                DMatrix dMatrix = GradientBoostingManager.toDMatrix(subSet);
+                boosters.add(GradientBoostingManager.trainAndGetModel(dMatrix, null));
+            } catch (XGBoostError error) {
+                throw new RuntimeException(error);
+            }
+        }
     }
+
+
 
     private List<FeatureSubSet> getSubSets(Map<String, List<Float>> featuresByFile, int offset) {
         List<FeatureSubSet> featureSubSetList = new ArrayList<>();
@@ -95,14 +109,14 @@ public class DataManager {
 
 @Getter @Setter @AllArgsConstructor
 class FeatureSubSet {
-    public FeaturePoint label;
-    public List<FeaturePoint> features;
+    private FeaturePoint label;
+    private List<FeaturePoint> features;
 }
 
 @Getter @Setter @AllArgsConstructor
 class FeaturePoint {
-    public String entity_id;
-    public List<Float> features;
+    private String entity_id;
+    private List<Float> features;
 }
 
 
