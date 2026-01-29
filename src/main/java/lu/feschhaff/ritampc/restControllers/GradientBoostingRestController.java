@@ -1,22 +1,23 @@
-package lu.feschhaff.ritampc.controllers;
+package lu.feschhaff.ritampc.restControllers;
 
 import lombok.extern.log4j.Log4j2;
 import lu.feschhaff.ritampc.DataManager;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 
-@Controller
+@RestController
 @Log4j2
 @RequestMapping("/rita")
-public class GradientBoostingController {
+public class GradientBoostingRestController {
 
-    @GetMapping
-    @RequestMapping("/train")
-    public void trainModel() throws IOException {
+    @GetMapping("/train")
+    public String trainModel() throws IOException {
         log.info("Train model based on folder has been called! ");
         DataManager.trainModelBasedOnFolderData();
+
+        return "Model training started";
     }
 }
