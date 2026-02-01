@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter @Setter
-public class State {
+public final class State {
     private String entity_id;
     private String state;
     private Attributes attributes;

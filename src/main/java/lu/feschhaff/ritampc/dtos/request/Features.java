@@ -4,6 +4,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter @Setter
-public class Features {
+public final class Features {
     private int coalesce_messages;
 }

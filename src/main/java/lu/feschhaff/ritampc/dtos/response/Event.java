@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter @Setter
-public class Event {
+public final class Event {
     private String event_type;
     private Data data;
     private String origin;

@@ -7,7 +7,7 @@ import lombok.Setter;
 
 @Getter @Setter @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class Request {
+public final class Request {
     private Integer id;
     private String type;
     private Features Features;

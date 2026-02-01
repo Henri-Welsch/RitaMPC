@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter @Setter
-public class Attributes {
+public final class Attributes {
     private String state_class;
     private String unit_of_measurement;
     private String device_class;
