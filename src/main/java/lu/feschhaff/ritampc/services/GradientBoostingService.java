@@ -1,23 +1,43 @@
-package lu.feschhaff.ritampc;
+package lu.feschhaff.ritampc.services;
 
+import lombok.extern.log4j.Log4j2;
+import lu.feschhaff.ritampc.DataManager;
+import lu.feschhaff.ritampc.FeaturePoint;
+import lu.feschhaff.ritampc.FeatureSubSet;
+import lu.feschhaff.ritampc.dtos.response.Response;
 import ml.dmlc.xgboost4j.java.Booster;
 import ml.dmlc.xgboost4j.java.DMatrix;
 import ml.dmlc.xgboost4j.java.XGBoost;
 import ml.dmlc.xgboost4j.java.XGBoostError;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.*;
 
-// https://xgboost.readthedocs.io/en/latest/jvm/java_intro.html
-public class GradientBoostingManager {
+/**
+ * @author Joé Welsch
+ * @sources {
+ *     https://xgboost.readthedocs.io/en/latest/jvm/java_intro.html
+ * }
+ */
+
+@Service @Log4j2
+public class GradientBoostingService {
+    private final StateStoreService stateStoreService;
+
+    public GradientBoostingService(StateStoreService stateStoreService) {
+        this.stateStoreService = stateStoreService;
+    }
+
     public static void main(String[] args) {
-        GradientBoostingManager gradientBoostingManager = new GradientBoostingManager();
 
         try {
-            DMatrix exampleTrainingData = gradientBoostingManager.getExampleTrainingData();
-            DMatrix exampleEvaluationData = gradientBoostingManager.getExampleEvaluationData();
+            DMatrix exampleTrainingData = GradientBoostingService.getExampleTrainingData();
+            DMatrix exampleEvaluationData = GradientBoostingService.getExampleEvaluationData();
 
-            gradientBoostingManager.trainAndGetModel(exampleTrainingData, exampleEvaluationData);
+            GradientBoostingService.trainAndGetModel(exampleTrainingData, exampleEvaluationData);
         } catch (XGBoostError error) {
             error.printStackTrace();
         }
@@ -62,10 +82,14 @@ public class GradientBoostingManager {
         // Create DMatrix
         DMatrix matrix = new DMatrix(data, numRows, numCols, Float.NaN);
 
+
+        // TODO, I think there is an error here
         // Labels
         float[] labels = new float[numRows];
         for (int i = 0; i < numRows; i++) {
-            labels[i] = subset.getLabel().getFeatures().get(i);
+            if (subset.getLabel() != null) {
+                labels[i] = subset.getLabel().getFeatures().get(i);
+            }
         }
         matrix.setLabel(labels);
 
@@ -79,7 +103,7 @@ public class GradientBoostingManager {
         return matrix;
     }
 
-    public DMatrix getExampleTrainingData() throws XGBoostError {
+    public static DMatrix getExampleTrainingData() throws XGBoostError {
         float[] trainData = {1.0f,2.0f, 3.0f,4.0f, 5.0f,6.0f};
         float[] trainLabels = {0f, 1f, 0f};
         String[] labelNames = {"label1", "label2"};
@@ -95,7 +119,7 @@ public class GradientBoostingManager {
         return dMatrix;
     }
 
-    public DMatrix getExampleEvaluationData() throws XGBoostError {
+    public static DMatrix getExampleEvaluationData() throws XGBoostError {
         float[] evalData = {2.0f,3.0f, 4.0f,5.0f};
         float[] evalLabels = {1f, 0f};
         String[] labelNames = {"label1", "label2"};
@@ -109,5 +133,43 @@ public class GradientBoostingManager {
         dMatrix.setFeatureNames(labelNames);
 
         return dMatrix;
+    }
+
+
+    @Scheduled(initialDelay = 1000, fixedRate = 1000)
+    public void predict() throws XGBoostError, IOException {
+        Map<String, Response> stateStore = stateStoreService.getStateStore();
+        Map<String, Response> stateStoreSnapshot = new HashMap<>(stateStore);
+
+        String dir = "C:/Users/WelJo/IdeaProjects/RitaMPC/src/main/resources";
+        Set<Path> paths = DataManager.listFilesUsingDirectoryStream(dir);
+
+        for (Path path : paths) {
+
+            String pathAsString = path.toString();
+
+            Booster booster = XGBoost.loadModel(pathAsString);
+            String[] featureNames = booster.getFeatureNames();
+            List<FeaturePoint> features = new ArrayList<>();
+
+            for (String featureName : featureNames) {
+                Response response = stateStoreSnapshot.get(featureName);
+
+                if (response == null) {
+                    log.warn("Skipping prediction -- Could not find feature record {} in map!", featureName);
+                    continue;
+                }
+                String state = response.getEvent().getData().getNew_state().getState();
+
+                float stateAsFloat = Float.parseFloat(state);
+                FeaturePoint featurePoint = new FeaturePoint(featureName, stateAsFloat);
+                features.add(featurePoint);
+            }
+
+            FeatureSubSet featureSubSet = new FeatureSubSet(null, features);
+            DMatrix dMatrix = GradientBoostingService.toDMatrix(featureSubSet);
+
+            float[][] predict = booster.predict(dMatrix);
+        }
     }
 }
