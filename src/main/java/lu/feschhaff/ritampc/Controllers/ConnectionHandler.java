@@ -73,6 +73,10 @@ public class ConnectionHandler {
                 this.stateStoreService.getStateStore().put(entityId, response);
                 break;
             }
+            case "result": {
+                log.info("Successfully subscribed to events!");
+                break;
+            }
             default: {
                 log.error("Unrecognized event type {}", jsonResponse);
                 break;
@@ -93,7 +97,7 @@ public class ConnectionHandler {
     }
 
     public void sendMessage(Session session, Request request) throws IOException {
-        log.info("Sending message: {}", request);
+        log.info("Sending message: {}", request.toString());
 
         String jsonRequest = new ObjectMapper().writeValueAsString(request);
         session.getBasicRemote().sendText(jsonRequest);

@@ -7,6 +7,7 @@ import lu.feschhaff.ritampc.services.StateStoreService;
 import ml.dmlc.xgboost4j.java.Booster;
 import ml.dmlc.xgboost4j.java.XGBoostError;
 import ml.dmlc.xgboost4j.java.DMatrix;
+import org.springframework.beans.factory.annotation.Value;
 
 
 import java.io.IOException;
@@ -21,6 +22,10 @@ import java.util.stream.Collectors;
 public class DataManager {
     private final GradientBoostingService gradientBoostingService;
 
+    @Value("${booster.model.location}")
+    private static String boosterModelLocation;
+
+
     public DataManager(GradientBoostingService gradientBoostingService) {
         this.gradientBoostingService = gradientBoostingService;
     }
@@ -34,7 +39,7 @@ public class DataManager {
     }
 
     public static void trainModelBasedOnFolderData() throws IOException {
-        String directory = "C:/Users/WelJo/Desktop/TrainingDataFolder";
+        String directory = "C:/Users/WelJo/Desktop/Influx Data Refrences/Data";
         Set<Path> paths = DataManager.listFilesUsingDirectoryStream(directory);
 
         Map<String, List<Float>> featuresByFile = paths.stream()
@@ -54,7 +59,7 @@ public class DataManager {
                 String featureNames = subSet.getFeatures().stream().map(FeaturePoint::getEntity_id).collect(Collectors.joining("__"));
                 String modelName = featureNames + "__" + subSet.getLabel().getEntity_id();
 
-                booster.saveModel("C:/Users/WelJo/IdeaProjects/RitaMPC/src/main/resources/" + modelName + ".json");
+                booster.saveModel(boosterModelLocation + modelName + ".json");
 
 
             } catch (XGBoostError error) {

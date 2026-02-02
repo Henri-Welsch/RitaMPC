@@ -9,6 +9,8 @@ import ml.dmlc.xgboost4j.java.Booster;
 import ml.dmlc.xgboost4j.java.DMatrix;
 import ml.dmlc.xgboost4j.java.XGBoost;
 import ml.dmlc.xgboost4j.java.XGBoostError;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -19,13 +21,18 @@ import java.util.*;
 /**
  * @author Joé Welsch
  * @sources {
- *     https://xgboost.readthedocs.io/en/latest/jvm/java_intro.html
+ *     <a href="https://xgboost.readthedocs.io/en/latest/jvm/java_intro.html">...</a>
+ *     <a href="https://www.baeldung.com/spring-scheduled-tasks">...</a>
  * }
  */
 
-@Service @Log4j2
+@EnableScheduling @Service @Log4j2
 public class GradientBoostingService {
     private final StateStoreService stateStoreService;
+
+    @Value("${booster.model.location}")
+    private String boosterModelLocation;
+
 
     public GradientBoostingService(StateStoreService stateStoreService) {
         this.stateStoreService = stateStoreService;
@@ -136,15 +143,15 @@ public class GradientBoostingService {
     }
 
 
-    @Scheduled(initialDelay = 1000, fixedRate = 1000)
+    // @Scheduled(initialDelay = 1000, fixedRate = 1000)
     public void predict() throws XGBoostError, IOException {
         Map<String, Response> stateStore = stateStoreService.getStateStore();
         Map<String, Response> stateStoreSnapshot = new HashMap<>(stateStore);
 
-        String dir = "C:/Users/WelJo/IdeaProjects/RitaMPC/src/main/resources";
-        Set<Path> paths = DataManager.listFilesUsingDirectoryStream(dir);
+        Set<Path> paths = DataManager.listFilesUsingDirectoryStream(boosterModelLocation);
 
         for (Path path : paths) {
+            if (!path.getFileName().toString().endsWith(".json")) { continue; }
 
             String pathAsString = path.toString();
 
@@ -170,6 +177,16 @@ public class GradientBoostingService {
             DMatrix dMatrix = GradientBoostingService.toDMatrix(featureSubSet);
 
             float[][] predict = booster.predict(dMatrix);
+
+            String[] s = pathAsString.split("__");
+            String s1 = s[s.length - 1];
+            log.info("Predicted {}, for {}" , Arrays.deepToString(predict), s1);
         }
+    }
+
+    @Scheduled(initialDelay = 10000, fixedRate = 10000)
+    private void stateStoreSchedule() {
+        int stateStoreSize = stateStoreService.getStateStore().size();
+        log.debug("Current state store size: {}", stateStoreSize);
     }
 }
