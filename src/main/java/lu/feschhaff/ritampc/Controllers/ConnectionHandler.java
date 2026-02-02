@@ -14,8 +14,9 @@ import java.io.IOException;
 /**
  * @author Joé Welsch
  * @references {
- *     https://developers.home-assistant.io/docs/api/websocket/
- *     https://www.baeldung.com/java-websockets
+ *     <a href="https://developers.home-assistant.io/docs/api/websocket/">...</a>
+ *     <a href="https://developers.home-assistant.io/docs/api/websocket/#authentication-phase">...</a>
+ *     <a href="https://www.baeldung.com/java-websockets">...</a>
  * }
  */
 
@@ -33,46 +34,54 @@ public class ConnectionHandler {
     }
 
     @OnOpen
-    public void onOpen(Session session) throws IOException {
+    public void onOpen(Session session) {
         // Get session and WebSocket connection
         log.info("Session successfully created");
     }
 
     @OnMessage
     public void onMessage(Session session, String jsonResponse) throws IOException {
-        log.info("Received message: {}", jsonResponse);
-
         Response response = new ObjectMapper().readValue(jsonResponse, Response.class);
         String type = response.getType();
 
-        // Authentication phase, this is the first step to connect to the websocket
-        // https://developers.home-assistant.io/docs/api/websocket/#authentication-phase
         switch (type) {
             case "auth_required": {
-                Request request = Request.builder().type("auth").access_token(access_token).build();
+                log.info("Authentication request from Home Assistant");
+
+                Request request = Request.builder()
+                        .type("auth")
+                        .access_token(access_token)
+                        .build();
+
                 sendMessage(session, request);
                 break;
             }
             case "auth_ok": {
-                log.info("Authentication successful");
+                log.info("Authentication successful, now subscribed to events!");
 
-                Request request = Request.builder().id(++messageId).type("subscribe_events").event_type("state_changed").build();
+                Request request = Request.builder()
+                        .id(++messageId)
+                        .type("subscribe_events")
+                        .event_type("state_changed")
+                        .build();
+
                 sendMessage(session, request);
-                break;
-            }
-            case "auth_invalid": {
-                log.error("Authentication failed");
                 break;
             }
             case "event": {
                 String entityId = response.getEvent().getData().getEntity_id();
                 this.stateStoreService.getStateStore().put(entityId, response);
+                break;
+            }
+            default: {
+                log.error("Unrecognized event type {}", jsonResponse);
+                break;
             }
         }
     }
 
     @OnClose
-    public void onClose(Session session) throws IOException {
+    public void onClose(Session session) {
         // WebSocket connection closes
         log.info("Session closed");
     }
