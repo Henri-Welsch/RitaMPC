@@ -1,4 +1,4 @@
-package lu.feschhaff.ritampc.Controllers;
+package lu.feschhaff.ritampc.controllers.websocket;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;

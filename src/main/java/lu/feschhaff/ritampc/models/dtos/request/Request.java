@@ -1,4 +1,4 @@
-package lu.feschhaff.ritampc.dtos.request;
+package lu.feschhaff.ritampc.models.dtos.request;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;

@@ -1,4 +1,4 @@
-package lu.feschhaff.ritampc;
+package lu.feschhaff.ritampc.models.objects;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

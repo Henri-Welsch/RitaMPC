@@ -2,9 +2,9 @@ package lu.feschhaff.ritampc.services;
 
 import lombok.extern.log4j.Log4j2;
 import lu.feschhaff.ritampc.DataManager;
-import lu.feschhaff.ritampc.FeaturePoint;
-import lu.feschhaff.ritampc.FeatureSubSet;
-import lu.feschhaff.ritampc.dtos.response.Response;
+import lu.feschhaff.ritampc.models.objects.FeaturePoint;
+import lu.feschhaff.ritampc.models.objects.FeatureSubSet;
+import lu.feschhaff.ritampc.models.dtos.response.Response;
 import ml.dmlc.xgboost4j.java.Booster;
 import ml.dmlc.xgboost4j.java.DMatrix;
 import ml.dmlc.xgboost4j.java.XGBoost;
@@ -27,24 +27,24 @@ import java.util.*;
  */
 
 @EnableScheduling @Service @Log4j2
-public class GradientBoostingService {
+public class TrainingService {
     private final StateStoreService stateStoreService;
 
     @Value("${booster.model.location}")
     private String boosterModelLocation;
 
 
-    public GradientBoostingService(StateStoreService stateStoreService) {
+    public TrainingService(StateStoreService stateStoreService) {
         this.stateStoreService = stateStoreService;
     }
 
     public static void main(String[] args) {
 
         try {
-            DMatrix exampleTrainingData = GradientBoostingService.getExampleTrainingData();
-            DMatrix exampleEvaluationData = GradientBoostingService.getExampleEvaluationData();
+            DMatrix exampleTrainingData = TrainingService.getExampleTrainingData();
+            DMatrix exampleEvaluationData = TrainingService.getExampleEvaluationData();
 
-            GradientBoostingService.trainAndGetModel(exampleTrainingData, exampleEvaluationData);
+            TrainingService.trainAndGetModel(exampleTrainingData, exampleEvaluationData);
         } catch (XGBoostError error) {
             error.printStackTrace();
         }
@@ -86,18 +86,25 @@ public class GradientBoostingService {
             }
         }
 
-        // Create DMatrix
-        DMatrix matrix = new DMatrix(data, numRows, numCols, Float.NaN);
+
 
 
         // TODO, I think there is an error here
         // Labels
         float[] labels = new float[numRows];
         for (int i = 0; i < numRows; i++) {
-            if (subset.getLabel() != null) {
-                labels[i] = subset.getLabel().getFeatures().get(i);
+            try {
+                if (subset.getLabel() != null) {
+                    Float v = subset.getLabel().getFeatures().get(i);
+                    labels[i] = v ==  null ? Float.NaN : v;
+                }
+            } catch (Exception e) {
+                log.error("Failed to read label {}", subset.getLabel(), e);
             }
         }
+
+        // Create DMatrix
+        DMatrix matrix = new DMatrix(data, numRows, numCols, Float.NaN);
         matrix.setLabel(labels);
 
         // featureNames
@@ -174,7 +181,7 @@ public class GradientBoostingService {
             }
 
             FeatureSubSet featureSubSet = new FeatureSubSet(null, features);
-            DMatrix dMatrix = GradientBoostingService.toDMatrix(featureSubSet);
+            DMatrix dMatrix = TrainingService.toDMatrix(featureSubSet);
 
             float[][] predict = booster.predict(dMatrix);
 

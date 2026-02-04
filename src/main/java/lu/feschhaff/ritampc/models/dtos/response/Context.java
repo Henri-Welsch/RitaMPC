@@ -1,4 +1,4 @@
-package lu.feschhaff.ritampc.dtos.response;
+package lu.feschhaff.ritampc.models.dtos.response;
 
 import lombok.Getter;
 import lombok.Setter;

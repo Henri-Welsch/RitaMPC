@@ -1,9 +1,9 @@
-package lu.feschhaff.ritampc.Controllers;
+package lu.feschhaff.ritampc.controllers.websocket;
 
 import jakarta.websocket.*;
 import lombok.extern.slf4j.Slf4j;
-import lu.feschhaff.ritampc.dtos.request.Request;
-import lu.feschhaff.ritampc.dtos.response.Response;
+import lu.feschhaff.ritampc.models.dtos.request.Request;
+import lu.feschhaff.ritampc.models.dtos.response.Response;
 import lu.feschhaff.ritampc.services.StateStoreService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;

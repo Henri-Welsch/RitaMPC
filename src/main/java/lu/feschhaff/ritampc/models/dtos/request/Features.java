@@ -1,4 +1,4 @@
-package lu.feschhaff.ritampc.dtos.request;
+package lu.feschhaff.ritampc.models.dtos.request;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -1,15 +1,13 @@
 package lu.feschhaff.ritampc;
 
 import lombok.extern.log4j.Log4j2;
+import lu.feschhaff.ritampc.models.objects.FeaturePoint;
+import lu.feschhaff.ritampc.models.objects.FeatureSubSet;
 import lu.feschhaff.ritampc.services.CsvFeatureService;
-import lu.feschhaff.ritampc.services.GradientBoostingService;
-import lu.feschhaff.ritampc.services.StateStoreService;
+import lu.feschhaff.ritampc.services.TrainingService;
 import ml.dmlc.xgboost4j.java.Booster;
-import ml.dmlc.xgboost4j.java.XGBoostError;
 import ml.dmlc.xgboost4j.java.DMatrix;
 import org.springframework.beans.factory.annotation.Value;
-
-
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -20,51 +18,43 @@ import java.util.stream.Collectors;
 
 @Log4j2
 public class DataManager {
-    private final GradientBoostingService gradientBoostingService;
-
     @Value("${booster.model.location}")
     private static String boosterModelLocation;
-
-
-    public DataManager(GradientBoostingService gradientBoostingService) {
-        this.gradientBoostingService = gradientBoostingService;
-    }
 
     public static void main(String[] args)  {
         try {
             DataManager.trainModelBasedOnFolderData();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            log.error(e);
         }
     }
 
-    public static void trainModelBasedOnFolderData() throws IOException {
+    public static void trainModelBasedOnFolderData() throws Exception {
         String directory = "C:/Users/WelJo/Desktop/Influx Data Refrences/Data";
         Set<Path> paths = DataManager.listFilesUsingDirectoryStream(directory);
 
+        // Read and map the feature values of each csv-file to their identifier
         Map<String, List<Float>> featuresByFile = paths.stream()
                 .collect(Collectors.toMap(
                         DataManager::getEntityId,
-                        CsvFeatureService::readFeatureColumn
+                        CsvFeatureService::readUsingBufferReader
                 ));
 
-        List<FeatureSubSet> subSets = DataManager.getSubSets(featuresByFile, 5);
+        // Create the cross product of ever data point so that every data point
+        // becomes the target once while all the other datapoint become the features
+        for (FeatureSubSet featureSubSet : DataManager.getSubSets(featuresByFile, 5)) {
+            // Create DMatrix and then train a Booster based on the Matrix.
+            DMatrix trainingDataMatrix = TrainingService.toDMatrix(featureSubSet);
+            Booster trainedModel = TrainingService.trainAndGetModel(trainingDataMatrix, null);
 
-        ArrayList<Booster> boosters = new ArrayList<>();
-        for (FeatureSubSet subSet : subSets) {
-            try {
-                DMatrix dMatrix = GradientBoostingService.toDMatrix(subSet);
-                Booster booster = GradientBoostingService.trainAndGetModel(dMatrix, null);
+            // Prepare booster filename in the format feature1__featureN__target.
+            String combinedFeatureIds = featureSubSet.getFeatures().stream().map(FeaturePoint::getEntity_id).collect(Collectors.joining("__"));
+            String targetFeatureId = featureSubSet.getLabel().getEntity_id();
+            String modelIdentifier = combinedFeatureIds + "__" + targetFeatureId;
 
-                String featureNames = subSet.getFeatures().stream().map(FeaturePoint::getEntity_id).collect(Collectors.joining("__"));
-                String modelName = featureNames + "__" + subSet.getLabel().getEntity_id();
-
-                booster.saveModel(boosterModelLocation + modelName + ".json");
-
-
-            } catch (XGBoostError error) {
-                throw new RuntimeException(error);
-            }
+            // Create full path (direction + filename) and save model on disc.
+            String modelFilePath = boosterModelLocation + modelIdentifier + ".json";
+            trainedModel.saveModel(modelFilePath);
         }
     }
 
@@ -111,25 +101,11 @@ public class DataManager {
                 if (Files.isDirectory(path))  {
                     String message = "Directories ar not read, skipping: {}";
                     log.warn(message, path.toString());
+                    continue;
                 }
                 fileSet.add(path);
             }
         }
         return fileSet;
     }
-
-    public DMatrix createDMatrix(float[] features, float[] labels, String[] featureNames) throws XGBoostError {
-        int rowLength = labels.length;
-        int colLength = labels.length;
-        float missingValue = 0.0f;
-
-        DMatrix dMatrix = new DMatrix(features, rowLength, colLength, missingValue);
-        dMatrix.setFeatureNames(featureNames);
-
-        return dMatrix;
-    }
 }
-
-
-
-
