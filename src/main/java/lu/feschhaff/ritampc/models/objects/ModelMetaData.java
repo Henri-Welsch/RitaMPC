@@ -3,7 +3,7 @@ package lu.feschhaff.ritampc.models.objects;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-import java.util.Set;
+import java.util.List;
 
 /**
  * @author Henri-Welsch
@@ -13,5 +13,5 @@ import java.util.Set;
 @AllArgsConstructor @Getter
 public class ModelMetaData {
     private final String target;
-    private final Set<String> usedFeatures;
+    private final List<String> usedFeatures;
 }

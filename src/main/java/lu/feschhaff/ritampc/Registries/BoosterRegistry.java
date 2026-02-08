@@ -1,4 +1,4 @@
-package lu.feschhaff.ritampc.services;
+package lu.feschhaff.ritampc.Registries;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.log4j.Log4j2;
@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -38,14 +39,14 @@ public class BoosterRegistry {
 
     private final Map<String, BoosterSubset> boosterRegistry = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final StateStoreService stateStore;
+    private final EntityRegistry stateStore;
     private final ConfigurableApplicationContext configurableApplicationContext;
 
     @Value("${booster.model.location}")
     private String boosterModelRootPath = "C:/Users/WelJo/Desktop/testFolder";
 
     public BoosterRegistry(
-            StateStoreService stateStore,
+            EntityRegistry stateStore,
             ConfigurableApplicationContext configurableApplicationContext
     ) {
         this.stateStore = stateStore;
@@ -119,15 +120,21 @@ public class BoosterRegistry {
 
     public Optional<BoosterModel> findBestBooster(String target) {
         BoosterSubset boosterSubset = this.boosterRegistry.get(target);
-        Set<String> featuresToCheck = boosterSubset.getGeneralMetaData().getAvailableFeatures();
-        Set<String> availableFeatures = stateStore.getPresentFeatures(featuresToCheck);
+        List<String> featuresToCheck = boosterSubset.getGeneralMetaData().getAvailableFeatures();
+        List<String> availableFeatures = stateStore.getPresentFeatures(featuresToCheck);
 
         return findBooster(target, availableFeatures);
     }
 
-    private Optional<BoosterModel> findBooster(String target, Set<String> features) {
+    private Optional<BoosterModel> findBooster(String target, List<String> features) {
         return this.boosterRegistry.get(target).getBoosterModels().stream()
                 .filter(boosterModel -> boosterModel.containsAll(features))
                 .findFirst();
+    }
+
+    public List<String> getAvailableFeaturesForBooster(String boosterTarget) {
+        BoosterSubset boosterSubset = this.boosterRegistry.get(boosterTarget);
+
+        return boosterSubset.getGeneralMetaData().getAvailableFeatures();
     }
 }

@@ -4,7 +4,7 @@ import jakarta.websocket.*;
 import lombok.extern.slf4j.Slf4j;
 import lu.feschhaff.ritampc.models.dtos.request.Request;
 import lu.feschhaff.ritampc.models.dtos.response.Response;
-import lu.feschhaff.ritampc.services.StateStoreService;
+import lu.feschhaff.ritampc.Registries.EntityRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -23,14 +23,14 @@ import java.io.IOException;
 @Slf4j @ClientEndpoint @Component
 public class ConnectionHandler {
 
-    private final StateStoreService stateStoreService;
+    private final EntityRegistry entityRegistry;
     private int messageId = 0;
 
     @Value("${home.assistant.websocket.access_token}")
     String access_token;
 
-    public ConnectionHandler(StateStoreService stateStoreService) {
-        this.stateStoreService = stateStoreService;
+    public ConnectionHandler(EntityRegistry entityRegistry) {
+        this.entityRegistry = entityRegistry;
     }
 
     @OnOpen
@@ -70,7 +70,7 @@ public class ConnectionHandler {
             }
             case "event": {
                 String entityId = response.getEvent().getData().getEntity_id();
-                this.stateStoreService.getStateStore().put(entityId, response);
+                this.entityRegistry.getEntityRegistry().put(entityId, response);
                 break;
             }
             case "result": {

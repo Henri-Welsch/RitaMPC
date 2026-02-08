@@ -3,7 +3,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import ml.dmlc.xgboost4j.java.Booster;
 
-import java.util.Set;
+import java.util.HashSet;
+import java.util.List;
 
 /**
  * @author Henri-Welsch
@@ -17,7 +18,7 @@ public class BoosterModel {
         private ModelMetaData modelMetaData;
         private Booster booster;
 
-        public boolean containsAll(Set<String> features) {
-            return modelMetaData.getUsedFeatures().containsAll(features);
+        public boolean containsAll(List<String> features) {
+            return new HashSet<>(modelMetaData.getUsedFeatures()).containsAll(features);
         }
 }
