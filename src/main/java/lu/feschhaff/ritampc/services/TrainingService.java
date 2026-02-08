@@ -2,6 +2,7 @@ package lu.feschhaff.ritampc.services;
 
 import lombok.extern.log4j.Log4j2;
 import lu.feschhaff.ritampc.DataManager;
+import lu.feschhaff.ritampc.Registries.EntityRegistry;
 import lu.feschhaff.ritampc.models.objects.FeaturePoint;
 import lu.feschhaff.ritampc.models.objects.FeatureSubSet;
 import lu.feschhaff.ritampc.models.dtos.response.Response;
@@ -25,17 +26,17 @@ import java.util.*;
  *     <a href="https://www.baeldung.com/spring-scheduled-tasks">...</a>
  * }
  */
-
+@Deprecated
 @EnableScheduling @Service @Log4j2
 public class TrainingService {
-    private final StateStoreService stateStoreService;
+    private final EntityRegistry entityRegistry;
 
     @Value("${booster.model.location}")
     private String boosterModelLocation;
 
 
-    public TrainingService(StateStoreService stateStoreService) {
-        this.stateStoreService = stateStoreService;
+    public TrainingService(EntityRegistry entityRegistry) {
+        this.entityRegistry = entityRegistry;
     }
 
     public static void main(String[] args) {
@@ -152,7 +153,7 @@ public class TrainingService {
 
     // @Scheduled(initialDelay = 1000, fixedRate = 1000)
     public void predict() throws XGBoostError, IOException {
-        Map<String, Response> stateStore = stateStoreService.getStateStore();
+        Map<String, Response> stateStore = entityRegistry.getEntityRegistry();
         Map<String, Response> stateStoreSnapshot = new HashMap<>(stateStore);
 
         Set<Path> paths = DataManager.listFilesUsingDirectoryStream(boosterModelLocation);
@@ -193,7 +194,11 @@ public class TrainingService {
 
     @Scheduled(initialDelay = 10000, fixedRate = 10000)
     private void stateStoreSchedule() {
-        int stateStoreSize = stateStoreService.getStateStore().size();
+        int stateStoreSize = entityRegistry.getEntityRegistry().size();
         log.debug("Current state store size: {}", stateStoreSize);
+    }
+
+    public DMatrix convertFloatToDMatrix(float[] floats) throws XGBoostError {
+        return new DMatrix(floats, 1, floats.length, Float.NaN);
     }
 }

@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @Log4j2
-@RequestMapping("/rita")
+@RequestMapping("/rita") @Deprecated
 public class TrainingControllerRest {
     private final TrainingService trainingService;
 
