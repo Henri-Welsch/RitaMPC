@@ -5,7 +5,6 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 /**
  * @author Henri-Welsch
@@ -14,13 +13,12 @@ import java.util.Set;
  * }
  */
 
-
 @Getter @Setter
 public class BoosterSubset {
-    private Set<String> possibleFeatures;
-    private List<BoosterModel> BoosterModel = new ArrayList<>();
+    private GeneralMetaData generalMetaData;
+    private List<BoosterModel> BoosterModels = new ArrayList<>();
 
-    public BoosterSubset(Set<String> allPossibleFeatures) {
-        this.possibleFeatures = allPossibleFeatures;
+    public BoosterSubset(GeneralMetaData generalMetaData) {
+        this.generalMetaData = generalMetaData;
     }
 }
