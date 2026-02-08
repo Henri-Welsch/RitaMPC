@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * }
  */
 
-@Service @Log4j2 @Getter
+@Service @Log4j2 @Getter @Deprecated
 public class BoosterStoreService {
 
     private final Map<String, Booster> boosterStore = new ConcurrentHashMap<>();
