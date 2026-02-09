@@ -198,7 +198,7 @@ public class TrainingService {
         log.debug("Current state store size: {}", stateStoreSize);
     }
 
-    public DMatrix convertFloatToDMatrix(float[] floats) throws XGBoostError {
+    public DMatrix convertFloatsToDMatrix(float[] floats) throws XGBoostError {
         return new DMatrix(floats, 1, floats.length, Float.NaN);
     }
 }

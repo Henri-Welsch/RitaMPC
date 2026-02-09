@@ -39,17 +39,17 @@ public class BoosterRegistry {
 
     private final Map<String, BoosterSubset> boosterRegistry = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final EntityRegistry stateStore;
+    private final EntityRegistry entityRegistry;
     private final ConfigurableApplicationContext configurableApplicationContext;
 
     @Value("${booster.model.location}")
     private String boosterModelRootPath = "C:/Users/WelJo/Desktop/testFolder";
 
     public BoosterRegistry(
-            EntityRegistry stateStore,
+            EntityRegistry entityRegistry,
             ConfigurableApplicationContext configurableApplicationContext
     ) {
-        this.stateStore = stateStore;
+        this.entityRegistry = entityRegistry;
         this.configurableApplicationContext = configurableApplicationContext;
     }
 
@@ -121,7 +121,7 @@ public class BoosterRegistry {
     public Optional<BoosterModel> findBestBooster(String target) {
         BoosterSubset boosterSubset = this.boosterRegistry.get(target);
         List<String> featuresToCheck = boosterSubset.getGeneralMetaData().getAvailableFeatures();
-        List<String> availableFeatures = stateStore.getPresentFeatures(featuresToCheck);
+        List<String> availableFeatures = entityRegistry.getPresentFeatures(featuresToCheck);
 
         return findBooster(target, availableFeatures);
     }
@@ -130,11 +130,5 @@ public class BoosterRegistry {
         return this.boosterRegistry.get(target).getBoosterModels().stream()
                 .filter(boosterModel -> boosterModel.containsAll(features))
                 .findFirst();
-    }
-
-    public List<String> getAvailableFeaturesForBooster(String boosterTarget) {
-        BoosterSubset boosterSubset = this.boosterRegistry.get(boosterTarget);
-
-        return boosterSubset.getGeneralMetaData().getAvailableFeatures();
     }
 }
