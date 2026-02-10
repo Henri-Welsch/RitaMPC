@@ -3,6 +3,7 @@ package lu.feschhaff.ritampc.services;
 import lombok.extern.log4j.Log4j2;
 import lu.feschhaff.ritampc.Registries.BoosterRegistry;
 import lu.feschhaff.ritampc.Registries.EntityRegistry;
+import lu.feschhaff.ritampc.Registries.MicrometerRegistry;
 import lu.feschhaff.ritampc.models.dtos.response.Response;
 import lu.feschhaff.ritampc.models.objects.BoosterModel;
 import ml.dmlc.xgboost4j.java.Booster;
@@ -27,6 +28,8 @@ import java.util.*;
 public class PredictionService {
     private final EntityRegistry entityRegistry;
     private final BoosterRegistry boosterRegistry;
+    private final MicrometerRegistry micrometerRegistry;
+
     private final TrainingService trainingService;
 
     Set<String> predictionTargets = new HashSet<>(Arrays.asList(
@@ -38,11 +41,12 @@ public class PredictionService {
     public PredictionService(
             EntityRegistry entityRegistry,
             BoosterRegistry boosterRegistry,
-            TrainingService trainingService
-    ) {
+            TrainingService trainingService,
+            MicrometerRegistry micrometerRegistry) {
         this.entityRegistry = entityRegistry;
         this.boosterRegistry = boosterRegistry;
         this.trainingService = trainingService;
+        this.micrometerRegistry = micrometerRegistry;
     }
 
     /**
@@ -69,6 +73,12 @@ public class PredictionService {
 
                 Booster booster = boosterModel.getBooster();
                 float[][] predictionResult = makePrediction(booster, dMatrix);
+
+                float v = predictionResult[0][0];
+                String identifier = "sensor." + predictionTarget;
+                micrometerRegistry.updateGauge(identifier, "5m", v);
+
+                log.info("Prediction for {}{}", predictionTarget, Arrays.deepToString(predictionResult));
             } catch (Exception e) {
                 log.warn("Converting array to DMatrix failed!", e);
             }
@@ -98,14 +108,14 @@ public class PredictionService {
      * @param entitySnapshot snapshot of the entity registry
      * @param featuresToExtract ordered list of required feature IDs
      * @return array of extracted feature values from the entity registry
-     *
      */
     private float[] extractValues(Map<String, Response> entitySnapshot, List<String> featuresToExtract) {
         float[] result = new float[featuresToExtract.size()];
         int index = 0;
 
         for (String feature : featuresToExtract) {
-            Response response = entitySnapshot.get(feature);
+            String featureWithPrefix = "sensor." + feature; // TODO
+            Response response = entitySnapshot.get(featureWithPrefix);
 
             var state = response.getEvent().getData().getNew_state().getState();
             result[index++] = Float.parseFloat(state);

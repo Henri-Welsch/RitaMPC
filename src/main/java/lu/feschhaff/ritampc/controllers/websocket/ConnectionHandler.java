@@ -2,6 +2,7 @@ package lu.feschhaff.ritampc.controllers.websocket;
 
 import jakarta.websocket.*;
 import lombok.extern.slf4j.Slf4j;
+import lu.feschhaff.ritampc.Registries.MicrometerRegistry;
 import lu.feschhaff.ritampc.models.dtos.request.Request;
 import lu.feschhaff.ritampc.models.dtos.response.Response;
 import lu.feschhaff.ritampc.Registries.EntityRegistry;
@@ -24,13 +25,18 @@ import java.io.IOException;
 public class ConnectionHandler {
 
     private final EntityRegistry entityRegistry;
+    private final MicrometerRegistry micrometerRegistry;
     private int messageId = 0;
 
     @Value("${home.assistant.websocket.access_token}")
     String access_token;
 
-    public ConnectionHandler(EntityRegistry entityRegistry) {
+    public ConnectionHandler(
+            EntityRegistry entityRegistry,
+            MicrometerRegistry micrometerRegistry
+    ) {
         this.entityRegistry = entityRegistry;
+        this.micrometerRegistry = micrometerRegistry;
     }
 
     @OnOpen
@@ -71,6 +77,14 @@ public class ConnectionHandler {
             case "event": {
                 String entityId = response.getEvent().getData().getEntity_id();
                 this.entityRegistry.getEntityRegistry().put(entityId, response);
+
+                String state = response.getEvent().getData().getNew_state().getState();
+                try {
+                    float stateAsFloat = Float.parseFloat(state);
+                    this.micrometerRegistry.updateGauge(entityId, "current", stateAsFloat);
+                } catch (Exception e) {
+                    log.warn("Error while updating gauge state");
+                }
                 break;
             }
             case "result": {
