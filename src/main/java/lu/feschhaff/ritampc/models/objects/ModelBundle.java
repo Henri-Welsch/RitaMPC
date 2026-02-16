@@ -2,16 +2,14 @@ package lu.feschhaff.ritampc.models.objects;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-
-import java.util.List;
+import ml.dmlc.xgboost4j.java.Booster;
 
 /**
  * @author Henri-Welsch
  * @sources {}
  */
-
 @AllArgsConstructor @Getter
-public class ModelMetaData {
-    private final String target;
-    private final List<String> usedFeatures;
+public class ModelBundle {
+    private ModelConfig modelConfig;
+    private Booster booster;
 }

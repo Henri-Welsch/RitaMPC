@@ -5,9 +5,10 @@ import lu.feschhaff.ritampc.Registries.BoosterRegistry;
 import lu.feschhaff.ritampc.Registries.EntityRegistry;
 import lu.feschhaff.ritampc.Registries.MicrometerRegistry;
 import lu.feschhaff.ritampc.models.dtos.response.Response;
-import lu.feschhaff.ritampc.models.objects.BoosterModel;
+import lu.feschhaff.ritampc.models.objects.ModelBundle;
 import ml.dmlc.xgboost4j.java.Booster;
 import ml.dmlc.xgboost4j.java.DMatrix;
+import ml.dmlc.xgboost4j.java.XGBoostError;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -30,8 +31,6 @@ public class PredictionService {
     private final BoosterRegistry boosterRegistry;
     private final MicrometerRegistry micrometerRegistry;
 
-    private final TrainingService trainingService;
-
     Set<String> predictionTargets = new HashSet<>(Arrays.asList(
             "awair_element_82522_score",
             "awair_element_82522_temperature",
@@ -41,11 +40,9 @@ public class PredictionService {
     public PredictionService(
             EntityRegistry entityRegistry,
             BoosterRegistry boosterRegistry,
-            TrainingService trainingService,
             MicrometerRegistry micrometerRegistry) {
         this.entityRegistry = entityRegistry;
         this.boosterRegistry = boosterRegistry;
-        this.trainingService = trainingService;
         this.micrometerRegistry = micrometerRegistry;
     }
 
@@ -57,30 +54,32 @@ public class PredictionService {
         Map<String, Response> entityRegistrySnapshot = entityRegistry.getEntityRegistrySnapshot();
 
         for (String predictionTarget : predictionTargets) {
-            Optional<BoosterModel> bestBooster = boosterRegistry.findBestBooster(predictionTarget);
+            int stepsAhead = 0;
+            ModelBundle modelBundle = boosterRegistry.getModelBundle(predictionTarget, stepsAhead);
 
-            if (bestBooster.isEmpty()) {
-                log.warn("No booster found for prediction target [{}]", predictionTarget);
+            if (modelBundle == null) {
+                String message = "No booster found for [target: {}] and [stepsAhead: {}]";
+                log.info(message, predictionTarget,stepsAhead);
                 continue;
             }
 
-            BoosterModel boosterModel = bestBooster.get();
-            List<String> usedFeatures = boosterModel.getModelMetaData().getUsedFeatures();
+            List<String> featuresUsedForTraining = modelBundle.getModelConfig().getFeatures();
 
             try {
-                float[] featureValues = extractValues(entityRegistrySnapshot, usedFeatures);
-                DMatrix dMatrix = trainingService.convertFloatsToDMatrix(featureValues);
+                float[] featureValues = extractValues(entityRegistrySnapshot, featuresUsedForTraining);
+                DMatrix dMatrix = convertFloatsToDMatrix(featureValues);
 
-                Booster booster = boosterModel.getBooster();
+                Booster booster = modelBundle.getBooster();
                 float[][] predictionResult = makePrediction(booster, dMatrix);
 
                 float v = predictionResult[0][0];
-                String identifier = "sensor." + predictionTarget;
-                micrometerRegistry.updateGauge(identifier, "5m", v);
+                micrometerRegistry.updateGauge(predictionTarget, "5m", v);
 
-                log.info("Prediction for {}{}", predictionTarget, Arrays.deepToString(predictionResult));
-            } catch (Exception e) {
+                log.info("Prediction for {}{}, based on {}", predictionTarget, Arrays.deepToString(predictionResult), Arrays.toString(featureValues));
+            } catch (XGBoostError e) {
                 log.warn("Converting array to DMatrix failed!", e);
+            } catch (Exception e) {
+                log.error(e.getMessage(), e);
             }
         }
 
@@ -97,7 +96,7 @@ public class PredictionService {
      * @return prediction result as a 2D float array
      * @throws Exception if XGBoost prediction fails
      */
-    public float[][] makePrediction(Booster booster, DMatrix dMatrix) throws Exception {
+    public float[][] makePrediction(Booster booster, DMatrix dMatrix) throws XGBoostError {
         return booster.predict(dMatrix);
     }
 
@@ -109,18 +108,25 @@ public class PredictionService {
      * @param featuresToExtract ordered list of required feature IDs
      * @return array of extracted feature values from the entity registry
      */
-    private float[] extractValues(Map<String, Response> entitySnapshot, List<String> featuresToExtract) {
+    private float[] extractValues(Map<String, Response> entitySnapshot, List<String> featuresToExtract) throws NullPointerException {
         float[] result = new float[featuresToExtract.size()];
         int index = 0;
 
         for (String feature : featuresToExtract) {
-            String featureWithPrefix = "sensor." + feature; // TODO
-            Response response = entitySnapshot.get(featureWithPrefix);
+            Response response = entitySnapshot.get(feature);
 
-            var state = response.getEvent().getData().getNew_state().getState();
-            result[index++] = Float.parseFloat(state);
+            if (response != null) {
+                String state = response.getEvent().getData().getNew_state().getState();
+                result[index++] = Float.parseFloat(state);
+            } else {
+                result[index++] = Float.NaN;
+            }
         }
 
-        return result;
+        return result; // TODO: Maybe a prediction threshold, to many NaNs cant be good.
+    }
+
+    public DMatrix convertFloatsToDMatrix(float[] floats) throws XGBoostError {
+        return new DMatrix(floats, 1, floats.length, Float.NaN);
     }
 }

@@ -2,10 +2,9 @@ package lu.feschhaff.ritampc.Registries;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.log4j.Log4j2;
-import lu.feschhaff.ritampc.models.objects.BoosterModel;
-import lu.feschhaff.ritampc.models.objects.BoosterSubset;
-import lu.feschhaff.ritampc.models.objects.GeneralMetaData;
-import lu.feschhaff.ritampc.models.objects.ModelMetaData;
+import lu.feschhaff.ritampc.models.objects.ModelBundle;
+import lu.feschhaff.ritampc.models.objects.ModelConfig;
+import lu.feschhaff.ritampc.models.objects.ModelFamily;
 import ml.dmlc.xgboost4j.java.Booster;
 import ml.dmlc.xgboost4j.java.XGBoost;
 import ml.dmlc.xgboost4j.java.XGBoostError;
@@ -18,10 +17,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -37,19 +33,14 @@ import java.util.stream.Stream;
 @Component @Log4j2
 public class BoosterRegistry {
 
-    private final Map<String, BoosterSubset> boosterRegistry = new ConcurrentHashMap<>();
+    private final Map<String, ModelFamily> boosterRegistry = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final EntityRegistry entityRegistry;
     private final ConfigurableApplicationContext configurableApplicationContext;
 
     @Value("${booster.model.location}")
     private String boosterModelRootPath = "C:/Users/WelJo/Desktop/testFolder";
 
-    public BoosterRegistry(
-            EntityRegistry entityRegistry,
-            ConfigurableApplicationContext configurableApplicationContext
-    ) {
-        this.entityRegistry = entityRegistry;
+    public BoosterRegistry(ConfigurableApplicationContext configurableApplicationContext) {
         this.configurableApplicationContext = configurableApplicationContext;
     }
 
@@ -72,63 +63,89 @@ public class BoosterRegistry {
         Set<Path> targetFolders = getSubsetFolders(boosterModelRootPath);
 
         for (Path targetFolder : targetFolders) {
-            BoosterSubset boosterSubset = loadBoosterSubset(targetFolder);
-            String targetKey = targetFolder.getFileName().toString();
-            boosterRegistry.put(targetKey, boosterSubset);
+            ModelFamily modelFamily = getModelFamily(targetFolder);
+            boosterRegistry.put(modelFamily.getTarget(), modelFamily);
         }
 
         log.info("Booster registry has been initialized");
     }
 
-    private BoosterSubset loadBoosterSubset(Path targetFolder) throws IOException {
-        Path metaPath = targetFolder.resolve("meta.json");
-
-        GeneralMetaData generalMetaData = objectMapper.readValue(metaPath, GeneralMetaData.class);
-
-        BoosterSubset boosterSubset = new BoosterSubset(generalMetaData);
-        Set<Path> strategyFolders = getSubsetFolders(targetFolder.toString());
+    private ModelFamily getModelFamily(Path targetFolder) throws IOException {
+        Set<Path> strategyFolders = getSubsetFolders(targetFolder.toString()); // TODO
+        ModelFamily modelFamily = new ModelFamily();
 
         for (Path strategyFolder : strategyFolders) {
             if (!Files.isDirectory(strategyFolder)) continue;
 
             try {
-                BoosterModel boosterModel = loadBoosterModel(strategyFolder);
-                boosterSubset.getBoosterModels().add(boosterModel);
+                ModelBundle modelBundle = getModelBundle(strategyFolder);
+                String target = modelBundle.getModelConfig().getTarget();
+
+                if (modelFamily.getTarget() == null) {
+                    modelFamily.setTarget(target);
+                }
+
+                modelFamily.addNewBundle(modelBundle);
             } catch (XGBoostError e) {
                 log.error("Unable to load booster from folder: {}", strategyFolder, e);
             }
         }
 
-        return boosterSubset;
+        return modelFamily;
     }
 
-    private BoosterModel loadBoosterModel(Path boosterFolder) throws XGBoostError {
-        Path boosterMetaPath = boosterFolder.resolve("meta.json");
-        ModelMetaData modelMetaData = objectMapper.readValue(boosterMetaPath, ModelMetaData.class);
+    private ModelBundle getModelBundle(Path targetFolder) throws XGBoostError {
+        Path modelConfigPath = targetFolder.resolve("modelConfig.json");
+        ModelConfig modelConfig = objectMapper.readValue(modelConfigPath.toFile(), ModelConfig.class);
 
-        Path boosterModelPath = boosterFolder.resolve("model.json");
-        Booster booster = XGBoost.loadModel(boosterModelPath.toString());
+        Path modelDefinitionPath = targetFolder.resolve("modelDefinition.json");
+        Booster modelDefinition = XGBoost.loadModel(modelDefinitionPath.toString());
 
-        return new BoosterModel(modelMetaData, booster);
+        return new  ModelBundle(modelConfig, modelDefinition);
     }
 
-    public static Set<Path> getSubsetFolders(String dir) throws IOException {
+//    private BoosterModel loadBoosterModel(Path boosterFolder) throws XGBoostError {
+//        Path boosterMetaPath = boosterFolder.resolve("meta.json");
+//        ModelMetaData modelMetaData = objectMapper.readValue(boosterMetaPath, ModelMetaData.class);
+//
+//        Path boosterModelPath = boosterFolder.resolve("model.json");
+//        Booster booster = XGBoost.loadModel(boosterModelPath.toString());
+//
+//        return new BoosterModel(modelMetaData, booster);
+//    }
+
+    private static Set<Path> getSubsetFolders(String dir) throws IOException {
         try (Stream<Path> stream = Files.list(Paths.get(dir))) {
             return stream.collect(Collectors.toSet());
         }
     }
 
-    public Optional<BoosterModel> findBestBooster(String target) {
-        BoosterSubset boosterSubset = this.boosterRegistry.get(target);
-        List<String> featuresToCheck = boosterSubset.getGeneralMetaData().getAvailableFeatures();
-        List<String> availableFeatures = entityRegistry.getPresentFeatures(featuresToCheck);
+    public ModelBundle getModelBundle(String target, int stepsAhead) {
+        ModelFamily modelFamily = boosterRegistry.get(target);
+        if (modelFamily == null) return null;
 
-        return findBooster(target, availableFeatures);
+        return modelFamily.getForStepsAhead(stepsAhead);
     }
 
-    private Optional<BoosterModel> findBooster(String target, List<String> features) {
-        return this.boosterRegistry.get(target).getBoosterModels().stream()
-                .filter(boosterModel -> boosterModel.containsAll(features))
-                .findFirst();
-    }
+
+//    public Optional<BoosterModel> findBestBooster(String target) {
+//        BoosterSubset boosterSubset = this.boosterRegistry.get(target);
+//        List<String> featuresToCheck = boosterSubset.getGeneralMetaData().getAvailableFeatures();
+//        List<String> availableFeatures = entityRegistry.getPresentFeatures(featuresToCheck);
+//
+//        return findBooster(target, availableFeatures);
+//    }
+
+//    private Optional<BoosterModel> findBooster(String target, List<String> features) {
+//        var registryEntry = boosterRegistry.get(target);
+//        if (registryEntry == null || features.isEmpty()) {
+//            return Optional.empty();
+//        }
+//
+//        return registryEntry.getBoosterModels().stream()
+//                .filter(model -> model.getModelMetaData()
+//                        .getUsedFeatures()
+//                        .equals(features))
+//                .findFirst();
+//    }
 }

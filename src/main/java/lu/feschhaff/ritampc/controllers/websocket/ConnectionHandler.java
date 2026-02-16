@@ -18,6 +18,7 @@ import java.io.IOException;
  *     <a href="https://developers.home-assistant.io/docs/api/websocket/">...</a>
  *     <a href="https://developers.home-assistant.io/docs/api/websocket/#authentication-phase">...</a>
  *     <a href="https://www.baeldung.com/java-websockets">...</a>
+ *     <a href="https://www.home-assistant.io/docs/configuration/entities_domains/">Entities and Domains</a>
  * }
  */
 
@@ -76,14 +77,17 @@ public class ConnectionHandler {
             }
             case "event": {
                 String entityId = response.getEvent().getData().getEntity_id();
-                this.entityRegistry.getEntityRegistry().put(entityId, response);
+                String entityIdWithoutPrefix = entityId.split("\\.")[1];
+                this.entityRegistry.getEntityRegistry().put(entityIdWithoutPrefix, response);
 
                 String state = response.getEvent().getData().getNew_state().getState();
                 try {
                     float stateAsFloat = Float.parseFloat(state);
-                    this.micrometerRegistry.updateGauge(entityId, "current", stateAsFloat);
+                    this.micrometerRegistry.updateGauge(entityIdWithoutPrefix, "current", stateAsFloat);
+                log.info(entityId);
                 } catch (Exception e) {
-                    log.warn("Error while updating gauge state");
+                    // TODO: Logic to handle non gauges
+                    log.warn("Sate is not a gauge!");
                 }
                 break;
             }
