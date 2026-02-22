@@ -1,8 +1,8 @@
 package lu.feschhaff.ritampc;
 
-import lu.feschhaff.ritampc.mpc.config.GoalCofiguration;
-import lu.feschhaff.ritampc.mpc.MpcController;
-import lu.feschhaff.ritampc.mpc.optimizers.RandomSearchStrategy;
+import lu.feschhaff.ritampc.ModelPredictiveController.config.GoalCofiguration;
+import lu.feschhaff.ritampc.ModelPredictiveController.MpcController;
+import lu.feschhaff.ritampc.ModelPredictiveController.optimizers.RandomSearchStrategy;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
