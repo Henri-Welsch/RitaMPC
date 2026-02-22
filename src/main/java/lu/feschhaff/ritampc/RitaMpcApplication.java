@@ -1,6 +1,8 @@
 package lu.feschhaff.ritampc;
 
-import org.springframework.boot.SpringApplication;
+import lu.feschhaff.ritampc.mpc.config.GoalCofiguration;
+import lu.feschhaff.ritampc.mpc.MpcController;
+import lu.feschhaff.ritampc.mpc.optimizers.RandomSearchStrategy;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -9,6 +11,15 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class RitaMpcApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(RitaMpcApplication.class, args);
+// SpringApplication.run(RitaMpcApplication.class, args);
+
+        GoalCofiguration goalCofiguration = new GoalCofiguration();
+        RandomSearchStrategy optimizer = new RandomSearchStrategy();
+        MpcController controller = new MpcController(optimizer, goalCofiguration);
+
+        double currentTemp = 20.0; // TODO: replace with real sensor value / state
+        double heaterValue = controller.computeNextAction(currentTemp);
+
+        System.out.println("Heater setting: " + heaterValue);
     }
 }
